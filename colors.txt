@@ -1,0 +1,20 @@
+|-
+| colspan="2" style="width:25%;color:rgb(4, 181, 2);" | 稀有
+| colspan="2" style="width:25%;" | {{{血肉条目|}}}
+| colspan="2" style="width:25%;" | {{{器官条目|}}}
+| colspan="2" style="width:25%" | {{{骨骼条目|}}}
+|-
+| colspan="2"  style="width:25%;color:rgb(1,150, 200);" | 罕见
+| colspan="2" style="width:25%;" | {{{血肉罕见条目|}}}
+| colspan="2" style="width:25%;" | {{{器官罕见条目|}}}
+| colspan="2" style="width:25%;" | {{{骨骼罕见条目|}}}
+|-
+| colspan="2" style="width:25%;color:rgb(198, 1, 251);" | 超凡
+| colspan="2" style="width:25%;" | {{{血肉超凡条目|}}}
+| colspan="2" style="width:25%;" | {{{器官超凡条目|}}}
+| colspan="2" style="width:25%;" | {{{骨骼超凡条目|}}}
+|-
+| colspan="2" style="width:25%;color:rgb(254, 139, 0);" | 史诗
+| colspan="2" style="width:25%;" | {{{血肉史诗条目|}}}
+| colspan="2" style="width:25%;" | {{{器官史诗条目|}}}
+| colspan="2" style="width:25%;" | {{{骨骼史诗条目|}}}

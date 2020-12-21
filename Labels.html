@@ -1,0 +1,311 @@
+<textarea id="ta" style="width:100%;height:100%"></textarea>
+<script>
+function getXML(path){
+    return new Promise(resolve => {
+        var xmlhttp = new window.XMLHttpRequest();
+        xmlhttp.open("GET",path, true); //创建一个新的http请求，并指定此请求的方法、URL以及验证信息
+        xmlhttp.send(null);
+        xmlhttp.onreadystatechange = function(){
+            if(xmlhttp.readyState === 4) {
+                resolve(xmlhttp.responseXML);
+            }
+        }
+    })
+}
+
+let superParts = [];
+
+async function readSuperParts(path){
+    let xml = await getXML(`./body/${path}`);
+    for(let sp of xml.documentElement.children[0].children){
+        let name = sp.getElementsByTagName("Prefix")[0].textContent + sp.getElementsByTagName("Suffix")[0].textContent;
+        superParts.push(name);
+        let parts = sp.getElementsByTagName("Parts")[0].children;
+        for(let li of parts) {
+            let labelList = li.getElementsByTagName("Labels")[0].children
+            
+            for(let label of labelList) {
+                labels[label.getAttribute("Name")].superParts[sp.getAttribute("Name")] = {
+                    name: name
+                };
+            }
+        }
+    }
+};
+
+let bodyItems = Object.create(null);
+
+async function readBodyItems(){
+    let xml = await getXML("./items/Item_BodyPracticeItem.xml");
+    for(let item of xml.documentElement.children[0].children){
+        if(item.getElementsByTagName("ThingName").length) {
+            let id = item.getAttribute("Name");
+            bodyItems[id] = {
+                name: item.getElementsByTagName("ThingName")[0].textContent,
+                level: Number(item.getElementsByTagName("Rate")[0].textContent)
+            }
+        }
+    }
+};
+
+let ta = document.getElementById("ta")
+
+let labels = {
+
+}
+
+let modifiers = {
+
+}
+
+let properties = {
+
+}
+
+let spproperties = {
+    AtkPower: {
+        name: "秘体威力"
+    },
+    DefPower: {
+        name: "秘体防御"
+    },
+    RecoverQi: {
+        name: "真炁回复速度"
+    },
+    AtkRate: {
+        name: "攻击命中率"
+    },
+    DefRate: {
+        name: "防御成功率"
+    },
+    CatchFabao: {
+        name: "法宝镇压概率"
+    },
+    FightCost: {
+        name: "真炁消耗速度"
+    },
+    ArmorPenetration: {
+        name: "灵气护盾穿透"
+    },
+    ResistanceJin: {
+        name: "金属性攻击抗性"
+    },
+    ResistanceShui: {
+        name: "水属性攻击抗性"
+    },
+    ResistanceMu: {
+        name: "木属性攻击抗性"
+    },
+    ResistanceHuo: {
+        name: "火属性攻击抗性"
+    },
+    ResistanceTu: {
+        name: "土属性攻击抗性"
+    }
+}
+
+let usedProperties = {}
+
+async function readModifiers(){
+    let xml = await getXML("./body/Modifier_BodyPractice_QuenchingLabel.xml");
+    for(let modifier of xml.documentElement.children[0].children){
+        let propertyList = modifier.getElementsByTagName("Properties")[0].children;
+        modifiers[modifier.getAttribute("Name")] = {
+            name: modifier.getElementsByTagName("DisplayName"),
+            description: modifier.getElementsByTagName("Desc"),
+            properties: []
+        }
+        
+        for(let li of propertyList) {
+            if(!properties[li.getAttribute("Name")])
+                console.log("属性丢失", li.getAttribute("Name"));
+            usedProperties[li.getAttribute("Name")] = properties[li.getAttribute("Name")];
+            modifiers[modifier.getAttribute("Name")].properties.push({
+                name: properties[li.getAttribute("Name")].name,
+                value: Number(li.getAttribute("AddV"))
+            });
+        }
+        //console.log(modifier)
+        //
+    }
+}
+
+async function readProperties(path){
+    let xml = await getXML(path);
+    for(let property of xml.documentElement.children[0].children){
+        console.log(property)
+
+        properties[property.getAttribute("Name")] = {
+            name: property.getElementsByTagName("DisplayName").length && property.getElementsByTagName("DisplayName")[0].textContent,
+            description: property.getElementsByTagName("Desc").length &&property.getElementsByTagName("Desc")[0].textContent
+        }
+        //
+    }
+}
+
+async function readLabels(){
+    let xml = await getXML("./body/QuenchingLabel.xml");
+    for(let label of xml.documentElement.children[0].children){
+        if("QuenchingLabel_Lv1_O01_All" === label.getAttribute("Name"))
+            debugger;
+        labels[label.getAttribute("Name")] = {
+            name: label.getElementsByTagName("DisplayName")[0].textContent,
+            maxLevel: label.getElementsByTagName("MaxLevel")[0].textContent,
+            rate: label.getElementsByTagName("Rate").length && Number(label.getElementsByTagName("Rate")[0].textContent),
+            description: label.getElementsByTagName("Desc").length && label.getElementsByTagName("Desc")[0].textContent,
+            items: {},
+            properties: [],
+            superParts: {}
+        }
+        //console.log(label)
+        if(label.getElementsByTagName("Modifier").length)
+            labels[label.getAttribute("Name")].modifier = modifiers[label.getElementsByTagName("Modifier")[0].textContent];
+
+        if(!label.getElementsByTagName("SuperPartProperties").length)
+            continue;
+        let propertyList = label.getElementsByTagName("SuperPartProperties")[0].children;
+        for(let li of propertyList) {
+            if(!spproperties[li.getAttribute("Name")])
+                console.log("属性丢失", li.getAttribute("Name"));
+            
+            labels[label.getAttribute("Name")].properties.push({
+                name: spproperties[li.getAttribute("Name")].name,
+                value: Number(li.getAttribute("BAddV")) || Number(li.getAttribute("AddV")),
+                isBase: !! li.getAttribute("BAddV"),
+                rate: Number(li.getAttribute("AddP"))
+            })
+        }
+    }
+    
+}
+
+
+
+async function readCaches(){
+    let xml = await getXML("./body/LabelCache.xml");
+    for(let cache of xml.documentElement.children[0].children){
+        let cacheName = cache.getAttribute("Name")
+        if(!cacheName.match(/Cache[1-4]/)) {
+            continue;
+        }
+
+        //ta.value += cache.getAttribute("Name") + "\n";
+
+
+
+        for(let link of cache.getElementsByTagName("Labels")[0].children) {
+            
+            if(link.getAttribute("LinkItem")) {
+                let label = link.getAttribute("Label");
+                let items = link.getAttribute("LinkItem").split('|');
+                let part = link.getAttribute("BodyPart");
+                let parts = part === "Any" ? ["Organ", "Flesh", "Bone"] : [part]
+
+                for(let part of parts) {
+                    for(let item of items) {
+                        let labelName = label;
+                        if(labelName === "QuenchingLabel_Lv0_Base") {
+                            labelName += "_" + part;
+                        }
+                        labels[labelName].items[item] = bodyItems[item]
+                        //ta.value += `${labels[label]}, ${parts[parLt]}, ${item} ${bodyItems[item] && bodyItems[item].name}\n`;
+                    }
+                }
+
+
+            }
+        }
+
+        //console.log(cache);
+    }
+}
+
+
+void async function main(){
+    let propertyConfigs = ["RoleProperty.xml", "BodyPraticeProperty.xml", "PracticeProperty.xml", "FightProperty.xml"]
+    for(let config of propertyConfigs) {
+        await readProperties("./body/" + config);
+    }
+
+    await readModifiers();
+
+    await readBodyItems();
+    await readLabels();
+    await readCaches();
+
+    let superPartConfigs = ["SuperPart_All_Gong1.xml", "SuperPart_All_Gong2.xml", "SuperPart_All_Gong3.xml", "SuperPart_All_Gong5.xml",
+        "SuperPart_Bear.xml","SuperPart_Boar.xml","SuperPart_Cat.xml","SuperPart_Cattle.xml",
+        "SuperPart_Chicken.xml","SuperPart_Forg.xml","SuperPart_Human.xml","SuperPart_Panda.xml",
+        "SuperPart_Rabbit.xml","SuperPart_Snake.xml","SuperPart_Tiger.xml","SuperPart_Turtle.xml","SuperPart_Wolf.xml"]
+
+    for(let config of superPartConfigs)
+        await readSuperParts(config);
+
+    for(let name in labels) {
+        let label = labels[name];
+
+        if(label.name.match(/^百炼之/)) {
+            label.items["Item_BodyPractice_ShengMingLv1"] = {};
+            label.items["Item_BodyPractice_ShengMingLv2"] = {};
+            label.items["Item_BodyPractice_ShengMingLv3"] = {};
+        }
+
+        let str = `
+https://wiki.biligame.com/acs/index.php?title=${label.name}&action=edit
+        
+{{条目
+|条目名=${label.name}
+|最大层数=${label.maxLevel}
+|品阶=${label.rate}
+|精华=${Object.keys(label.items).map(s => `[[${bodyItems[s].name}]]`).join(" ")}
+|全局属性名=${
+    label.modifier?
+        label.modifier.properties.map(property => property.name).join(",") : ""
+}
+|秘体属性名=${
+    label.properties.map(property => {
+        if(property.name === "真炁消耗速度")
+            return `${property.value > 0 ? "提高": "降低" }${property.name}`;
+        return property.name;
+
+    }).join(",")
+}
+|相关秘体名=${Object.keys(label.superParts).map(name => `${label.superParts[name].name}`).join(",")}
+|秘体=${Object.keys(label.superParts).map(name => `[[${label.superParts[name].name}]]`).join(" ")}
+|描述=${label.description && label.description
+    .replace(/\\n/g, "<br/>")
+    .replace(/\[size=10\]/g, "")
+    .replace(/\[\/size\]/g, "")
+    .replace(/\[color=#([A-F0-9]{6})\]/g, "<span style=\"color:$1\">")
+    .replace(/\[\/color\]/g, "</span>")}
+|全局属性=
+${
+    label.modifier?
+        label.modifier.properties.map(property => 
+            `${property.value > 0 ? "提高": "降低" }${property.name}${Math.abs(property.value)}点`
+        ).join("<br/>") : ""
+}
+|秘体属性=
+${
+    label.properties.map(property => 
+        property.value ?
+            `${property.isBase?"从根本上":""}${property.value > 0 ? "提高": "降低" }${property.name}${Math.abs(property.value)}点`:
+            `${property.rate > 0 ? "提高": "降低" }${property.name}${Math.abs(property.rate*100)}%`
+    ).join("<br/>")
+
+}
+}}
+
+`
+        ta.value += str;
+    }
+
+    console.log(Object.keys(usedProperties).map(n => usedProperties[n]).map(n => `{{模板:筛选项|1|${n.name}|${n.name}}}`).join("\n"));
+    
+
+
+}();
+
+//readItems();
+
+</script>

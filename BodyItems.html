@@ -1,0 +1,232 @@
+<textarea id="ta" style="width:100%;height:100%"></textarea>
+<script>
+function getXML(path){
+    return new Promise(resolve => {
+        var xmlhttp = new window.XMLHttpRequest();
+        xmlhttp.open("GET",path, true); //创建一个新的http请求，并指定此请求的方法、URL以及验证信息
+        xmlhttp.send(null);
+        xmlhttp.onreadystatechange = function(){
+            if(xmlhttp.readyState === 4) {
+                resolve(xmlhttp.responseXML);
+            }
+        }
+    })
+}
+
+let bodyItems = Object.create(null);
+
+async function readBodyItems(){
+    let xml = await getXML("./items/Item_BodyPracticeItem.xml");
+    for(let item of xml.documentElement.children[0].children){
+        if(item.getElementsByTagName("ThingName").length) {
+            let id = item.getAttribute("Name");
+            bodyItems[id] = {
+                name: item.getElementsByTagName("ThingName")[0].textContent,
+                level: Number(item.getElementsByTagName("Rate")[0].textContent)
+            }
+        }
+    }
+};
+/*
+|-
+! rowspan="2" | 通脉散 || 仙道精华 || 1.75 || 3 
+|-
+! | 生机精华 || 1.75 || 3 
+*/
+
+let ta = document.getElementById("ta")
+
+let devourIndex = {}
+
+async function readItems(path){
+    let xml = await getXML(path);
+    for(let item of xml.documentElement.children[0].children){
+        
+        if(item.getElementsByTagName("ThingName").length) {
+            let name = item.getElementsByTagName("ThingName")[0].textContent;
+            
+            if(item.getElementsByTagName("DevourDatas").length && name.length) {
+                let data = {}
+                let devourItems = item.getElementsByTagName("DevourDatas")[0].children;
+                if(!devourItems.length)
+                    continue;
+                devourIndex[name] = true;
+                for(let li of devourItems) {
+                    
+                    data[li.getAttribute("Name")] = data[li.getAttribute("Name")] || {
+                        max: 0,
+                        expect: 0,
+                        level: bodyItems[li.getAttribute("Name")].level,
+                        get color(){
+                            if(this.level < 4)
+                                return "white";
+                            if(this.level < 7)
+                                return "green";
+                            if(this.level < 9)
+                                return "blue";
+                            if(this.level < 11)
+                                return "purple";
+                            return "yellow";
+                        }
+                    };
+                    data[li.getAttribute("Name")].max += Number(li.getAttribute("Count"));
+                    data[li.getAttribute("Name")].expect += Number(li.getAttribute("Count")) * Number(li.getAttribute("Rate"));
+                }
+
+                for(let p in data) {
+                    bodyItems[p].devour = bodyItems[p].devour || {}
+                    bodyItems[p].devour[name] = data[p];
+                }
+
+            }
+        }
+    }
+};
+
+
+let labels = {
+
+}
+
+async function readLabels(){
+    let xml = await getXML("./body/QuenchingLabel.xml");
+    for(let label of xml.documentElement.children[0].children){
+        labels[label.getAttribute("Name")] = label.getElementsByTagName("DisplayName")[0].textContent;
+        //console.log(label)
+    }
+}
+
+
+
+async function readCaches(){
+    let xml = await getXML("./body/LabelCache.xml");
+    for(let cache of xml.documentElement.children[0].children){
+        let cacheName = cache.getAttribute("Name")
+        if(!cacheName.match(/Cache[1-4]/)) {
+            continue;
+        }
+
+        //ta.value += cache.getAttribute("Name") + "\n";
+
+
+
+        for(let link of cache.getElementsByTagName("Labels")[0].children) {
+            
+            if(link.getAttribute("LinkItem")) {
+                let label = link.getAttribute("Label");
+                let items = link.getAttribute("LinkItem").split('|');
+                let part = link.getAttribute("BodyPart");
+                let parts = part === "Any" ? ["Organ", "Flesh", "Bone"] : [part]
+
+                for(let part of parts) {
+                    for(let item of items) {
+                        let labelName = label;
+                        if(labelName === "QuenchingLabel_Lv0_Base") {
+                            labelName += "_" + part;
+                        }
+                        bodyItems[item].labels = bodyItems[item].labels || {};
+                        bodyItems[item].labels[part] = bodyItems[item].labels[part] || {}
+                        bodyItems[item].labels[part][labels[labelName]] = {
+                            lv: link.getAttribute("Lv")
+                        };
+                        //ta.value += `${labels[label]}, ${parts[parLt]}, ${item} ${bodyItems[item] && bodyItems[item].name}\n`;
+                    }
+                }
+
+                
+
+
+            }
+        }
+
+        //console.log(cache);
+    }
+}
+
+
+
+let itemConfigs = [
+    "Item_Consumable_Dan.xml",
+    "Item_Consumable_Drug.xml",
+    "Item_Consumable_Food.xml",
+    "Item_Consumable_SoulCrystal.xml",
+    "Item_Consumable_Spell.xml",
+    "Item_Consumable_Tool.xml",
+    "Item_DLC.xml",
+    "Item_Boss.xml",
+    "Item_Equipment_Clothes.xml",
+    "Item_Equipment_Fabao.xml",
+    "Item_Equipment_Hat.xml",
+    "Item_Equipment_MiBao.xml",
+    "Item_Equipment_Trousers.xml",
+    "Item_Equipment_Weapon.xml",
+    "Item_FengShuiItem.xml",
+    "Item_Fish_DLC.xml",
+    "Item_Material_2_Ingredient.xml",
+    "Item_Material_2_LeftoverMaterial.xml",
+    "Item_Material_2_Meat.xml",
+    "Item_Material_2_MetalBlock.xml",
+    "Item_Material_2_RockBlock.xml",
+    "Item_Material_2_WoodBlock.xml",
+    "Item_Material_Bone.xml",
+    "Item_Material_Cloth.xml",
+    "Item_Material_Leather.xml",
+    "Item_Material_Metal.xml",
+    "Item_Material_Other_Portia.xml",
+    "Item_Material_Other.xml",
+    "Item_Material_Rock.xml",
+    "Item_Material_Plant.xml",
+    "Item_Material_Rock.xml",
+    "Item_Material_Wood.xml",
+    "Item_System.xml",
+    "Item_System2.xml",
+]
+
+
+void async function main(){
+    await readBodyItems();
+    for(let path of itemConfigs) {
+        await readItems("./items/" + path);
+    }
+    await readLabels();
+    await readCaches();
+    
+    for(let name in bodyItems) {
+        let item = bodyItems[name];
+        ta.value += 
+`
+https://wiki.biligame.com/acs/index.php?action=edit&preload=%E7%B2%BE%E5%8D%8E%E9%A2%84%E8%AE%BE&editintro=%E5%88%9B%E5%BB%BA%E7%B2%BE%E5%8D%8E%E8%A7%84%E8%8C%83&title=${item.name}&create=%E5%88%9B%E5%BB%BA%E9%A1%B5%E9%9D%A2
+
+{{精华
+|精华名=${item.name}
+|吐纳条件=
+|获得方式=
+${item.devour?"吞噬":""}
+|吞噬物品名=
+${item.devour && Object.keys(item.devour).map(s => `${s}`).join(",") || ""}
+|条目=
+${item.labels && item.labels.Flesh && Object.keys(item.labels.Flesh).map(s => `${s}`).join(",") || ""},${item.labels && item.labels.Organ && Object.keys(item.labels.Organ).map(s => `${s}`).join(",") || ""},${item.labels && item.labels.Bone && Object.keys(item.labels.Bone).map(s => `${s}`).join(",") || ""}
+|吞噬物品=
+<center>
+
+    ${item.devour && Object.keys(item.devour).map(s => `\n<center>[[${s}]]： 平均获得${item.devour[s].expect}个，最多获得${item.devour[s].max}个</center>`).join("\n") || ""}
+
+
+</center>
+
+
+|血肉条目=${item.labels && item.labels.Flesh && Object.keys(item.labels.Flesh).map(s => `\n<center>[[${s}]]</center>`).join("\n") || ""}
+|器官条目=${item.labels && item.labels.Organ && Object.keys(item.labels.Organ).map(s => `\n<center>[[${s}]]</center>`).join("\n") || ""}
+|骨骼条目=${item.labels && item.labels.Bone && Object.keys(item.labels.Bone).map(s => `\n<center>[[${s}]]</center>`).join("\n") || ""}
+
+|备注=
+}}
+`
+    }
+
+    ta.value = Object.keys(devourIndex).map(name => `{{模板:筛选项|3|${name}|${name}}}`).join("\n")
+}();
+
+//readItems();
+
+</script>

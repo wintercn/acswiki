@@ -1,0 +1,136 @@
+<textarea id="ta" style="width:100%;height:100%"></textarea>
+<script>
+function getXML(path){
+    return new Promise(resolve => {
+        var xmlhttp = new window.XMLHttpRequest();
+        xmlhttp.open("GET",path, true); //创建一个新的http请求，并指定此请求的方法、URL以及验证信息
+        xmlhttp.send(null);
+        xmlhttp.onreadystatechange = function(){
+            if(xmlhttp.readyState === 4) {
+                resolve(xmlhttp.responseXML);
+            }
+        }
+    })
+}
+
+let bodyItems = Object.create(null);
+
+async function readBodyItems(){
+    let xml = await getXML("./items/Item_BodyPracticeItem.xml");
+    for(let item of xml.documentElement.children[0].children){
+        if(item.getElementsByTagName("ThingName").length) {
+            let id = item.getAttribute("Name");
+            bodyItems[id] = {
+                name: item.getElementsByTagName("ThingName")[0].textContent,
+                level: Number(item.getElementsByTagName("Rate")[0].textContent)
+            }
+        }
+    }
+};
+/*
+|-
+! rowspan="2" | 通脉散 || 仙道精华 || 1.75 || 3 
+|-
+! | 生机精华 || 1.75 || 3 
+*/
+
+let ta = document.getElementById("ta")
+
+async function readItems(path){
+    let xml = await getXML(path);
+    for(let item of xml.documentElement.children[0].children){
+        
+        if(item.getElementsByTagName("ThingName").length) {
+            let name = item.getElementsByTagName("ThingName")[0].textContent;
+            
+            if(item.getElementsByTagName("DevourDatas").length && name.length) {
+                console.log(name);
+                let data = {}
+                let devourItems = item.getElementsByTagName("DevourDatas")[0].children;
+                if(!devourItems.length)
+                    continue;
+                ta.value += "|-\n";
+                for(let li of devourItems) {
+
+                    data[bodyItems[li.getAttribute("Name")].name] = data[bodyItems[li.getAttribute("Name")].name] || {
+                        max: 0,
+                        expect: 0,
+                        level: bodyItems[li.getAttribute("Name")].level,
+                        get color(){
+                            if(this.level < 4)
+                                return "white";
+                            if(this.level < 7)
+                                return "green";
+                            if(this.level < 9)
+                                return "blue";
+                            if(this.level < 11)
+                                return "purple";
+                            return "yellow";
+                        }
+                    };
+                    data[bodyItems[li.getAttribute("Name")].name].max += Number(li.getAttribute("Count"));
+                    data[bodyItems[li.getAttribute("Name")].name].expect += Number(li.getAttribute("Count")) * Number(li.getAttribute("Rate"));
+                }
+                console.log(data)
+                ta.value += `| rowspan="${Object.keys(data).length}" | ${name} |`;
+
+                for(let p in data) {
+                    
+                }
+
+                ta.value += Object.keys(data).map(p => `| <font color=${data[p].color}> ${p} </font> || ${data[p].expect} || ${data[p].max}`).join("\n|-\n | ")
+                ta.value += "\n"
+            }
+        }
+    }
+};
+
+
+
+let itemConfigs = [
+    "Item_Consumable_Dan.xml",
+    "Item_Consumable_Drug.xml",
+    "Item_Consumable_Food.xml",
+    "Item_Consumable_SoulCrystal.xml",
+    "Item_Consumable_Spell.xml",
+    "Item_Consumable_Tool.xml",
+    "Item_DLC.xml",
+    "Item_Equipment_Clothes.xml",
+    "Item_Equipment_Fabao.xml",
+    "Item_Equipment_Hat.xml",
+    "Item_Equipment_MiBao.xml",
+    "Item_Equipment_Trousers.xml",
+    "Item_Equipment_Weapon.xml",
+    "Item_FengShuiItem.xml",
+    "Item_Fish_DLC.xml",
+    "Item_Material_2_Ingredient.xml",
+    "Item_Material_2_LeftoverMaterial.xml",
+    "Item_Material_2_Meat.xml",
+    "Item_Material_2_MetalBlock.xml",
+    "Item_Material_2_RockBlock.xml",
+    "Item_Material_2_WoodBlock.xml",
+    "Item_Material_Bone.xml",
+    "Item_Material_Cloth.xml",
+    "Item_Material_Leather.xml",
+    "Item_Material_Metal.xml",
+    "Item_Material_Other_Portia.xml",
+    "Item_Material_Other.xml",
+    "Item_Material_Rock.xml",
+    "Item_Material_Plant.xml",
+    "Item_Material_Rock.xml",
+    "Item_Material_Wood.xml",
+    "Item_System.xml",
+    "Item_System2.xml",
+]
+
+
+void async function main(){
+    await readBodyItems();
+    for(let path of itemConfigs) {
+        await readItems("./items/" + path);
+    }
+}();
+
+//readItems();
+
+</script>
